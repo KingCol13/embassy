@@ -30,8 +30,6 @@ impl<'a> RawSocket<'a> {
     /// Create a new Raw socket using the provided stack and buffers.
     pub fn new<D: Driver>(
         stack: Stack<'a>,
-        ip_version: IpVersion,
-        ip_protocol: IpProtocol,
         rx_meta: &'a mut [PacketMetadata],
         rx_buffer: &'a mut [u8],
         tx_meta: &'a mut [PacketMetadata],
@@ -43,8 +41,6 @@ impl<'a> RawSocket<'a> {
             let tx_meta: &'static mut [PacketMetadata] = unsafe { mem::transmute(tx_meta) };
             let tx_buffer: &'static mut [u8] = unsafe { mem::transmute(tx_buffer) };
             i.sockets.add(raw::Socket::new(
-                ip_version,
-                ip_protocol,
                 raw::PacketBuffer::new(rx_meta, rx_buffer),
                 raw::PacketBuffer::new(tx_meta, tx_buffer),
             ))
