@@ -211,6 +211,14 @@ where
         fifo_write(1);
 
         IS_CORE1_INIT.store(true, Ordering::Release);
+
+        // Zero frame pointer
+        unsafe {
+            core::arch::asm!(
+                "mov r7, #0", out("r7") _
+            );
+        }
+
         // Enable fifo interrupt on CORE1 for `pause` functionality.
         #[cfg(feature = "rp2040")]
         unsafe {
