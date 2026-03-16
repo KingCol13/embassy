@@ -11,4 +11,5 @@ pub mod rotary_encoder;
 pub mod spi;
 pub mod stepper;
 pub mod uart;
+pub mod qspi;
 pub mod ws2812;
