@@ -371,25 +371,6 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         )
     }
 
-    /// Read data from QSPI using DMA.
-    // pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
-    //     self.sm.set_enable(false);
-    //     self.cfg
-    //         .use_program(&self.program.as_ref().unwrap().read, &[&self.clk_pin]);
-    //     self.sm.set_config(&self.cfg);
-    //     self.sm.set_enable(true);
-    //
-    //     let rx = self.sm.rx();
-    //
-    //     let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
-    //     let rx_transfer = rx.dma_pull(&mut rx_ch, buffer, false);
-    //     rx_transfer.await;
-    //
-    //     defmt::info!("read: {}", &buffer);
-    //     embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    //
-    //     Ok(())
-    // }
     pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
@@ -414,27 +395,6 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         Ok(())
     }
 
-    /// Write data to QSPI using DMA.
-    // pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
-    //     self.sm.set_enable(false);
-    //     self.cfg
-    //         .use_program(&self.program.as_ref().unwrap().write, &[&self.clk_pin]);
-    //     self.sm.set_config(&self.cfg);
-    //     self.sm.set_enable(true);
-    //
-    //     let tx = self.sm.tx();
-    //
-    //     let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
-    //     let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
-    //
-    //     tx_transfer.await;
-    //
-    //     defmt::info!("wrote: {}", &buffer);
-    //     embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    //
-    //     Ok(())
-    // }
-
     /// Write data to SPI using DMA.
     pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
@@ -454,26 +414,6 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         Ok(())
     }
 
-    /// Write data using a single line to QSPI using DMA.
-    // pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
-    //     self.sm.set_enable(false);
-    //     self.cfg
-    //         .use_program(&self.program.as_ref().unwrap().write_single_line, &[&self.clk_pin]);
-    //     self.sm.set_config(&self.cfg);
-    //     self.sm.set_enable(true);
-    //
-    //     let tx = self.sm.tx();
-    //
-    //     let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
-    //     let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
-    //
-    //     tx_transfer.await;
-    //
-    //     defmt::info!("wrote single line: {}", &buffer);
-    //     embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    //
-    //     Ok(())
-    // }
     /// Write data to SPI using DMA.
     pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
