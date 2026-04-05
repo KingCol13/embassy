@@ -157,7 +157,6 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
         }
 
         clk_pin.set_slew_rate(SlewRate::Fast);
-        clk_pin.set_pull(Pull::Down);
 
         for pin in [&mut qd0_pin, &mut qd1_pin, &mut qd2_pin, &mut qd3_pin] {
             pin.set_input_sync_bypass(true);
