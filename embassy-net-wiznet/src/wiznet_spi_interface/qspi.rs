@@ -7,7 +7,7 @@ impl<'a> From<WiznetSpiOperation<'a>> for qspi::traits::Operation<'a, u8> {
     fn from(value: WiznetSpiOperation<'a>) -> Self {
         match value {
             WiznetSpiOperation::Read(data) => qspi::traits::Operation::Read(data),
-            WiznetSpiOperation::Write(data)  => qspi::traits::Operation::Write(data),
+            WiznetSpiOperation::Write(data)  => qspi::traits::Operation::WriteSingleLine(data),
             WiznetSpiOperation::WriteSingleLine(data) => qspi::traits::Operation::WriteSingleLine(data),
         }
     }
@@ -21,7 +21,7 @@ impl<T: qspi::traits::QspiDevice> ErrorType for WiznetQspiBus<T> {
 }
 
 impl<T: qspi::traits::QspiDevice> WiznetSpiBus for WiznetQspiBus<T> {
-    const SPI_TYPE: SpiType = SpiType::Quad;
+    const SPI_TYPE: SpiType = SpiType::Single;
 
     async fn transaction<'a, const N: usize>(
         &mut self,

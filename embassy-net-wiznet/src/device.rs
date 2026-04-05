@@ -84,7 +84,7 @@ impl<C: Chip, WizInterface: WiznetSpiBus> WiznetDevice<C, WizInterface> {
         this.bus_write(C::COMMON_MODE, &[0x80]).await?;
 
         // Check the version of the chip
-        let mut version = [0];
+        let mut version = [0; 10];
         this.bus_read(C::COMMON_VERSION, &mut version).await?;
         if version[0] != C::CHIP_VERSION {
             error!("invalid chip version: {} (expected {})", version[0], C::CHIP_VERSION);
