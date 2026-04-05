@@ -99,6 +99,7 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
 
                         ; Set QD0 pin to output
                         ; Set QD1 pin to input
+                        set pindirs 0b0001 side 0
 
                         .wrap_target
                         out pins, 1 side 0 [1]        ; Stall here on empty (sideset proceeds even if
@@ -186,10 +187,11 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
         cfg.use_program(&program.regular_spi, &[&clk_pin]);
         // cfg.use_program(&program.write_single_line, &[&clk_pin]);
         // cfg.set_in_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        // cfg.set_out_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        // cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        cfg.set_in_pins(&[&qd1_pin]);
-        cfg.set_out_pins(&[&qd0_pin]);
+        cfg.set_in_pins(&[&qd1_pin, &qd2_pin, &qd3_pin]);
+        cfg.set_out_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        // cfg.set_in_pins(&[&qd1_pin]);
+        // cfg.set_out_pins(&[&qd0_pin]);
         // cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
 
         cfg.shift_in.auto_fill = true;
@@ -206,11 +208,8 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
 
         sm.set_config(&cfg);
 
-        // sm.set_pins(Level::Low, &[&clk_pin, &qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-
-        sm.set_pins(Level::Low, &[&clk_pin, &qd0_pin]);
-        sm.set_pin_dirs(Direction::Out, &[&clk_pin, &qd0_pin]);
-        sm.set_pin_dirs(Direction::In, &[&qd1_pin]);
+        sm.set_pins(Level::Low, &[&clk_pin, &qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        sm.set_pin_dirs(Direction::Out, &[&clk_pin]);
 
         sm.set_enable(true);
 
