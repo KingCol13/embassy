@@ -58,7 +58,7 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
 
                         .wrap_target
                         nop side 0 [1]
-                        in pins, 4 side 1 [1]
+                        in pins, 2 side 1 [1]
                         .wrap
                     "#
                 );
@@ -415,22 +415,19 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
     pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
-            .use_program(&self.program.as_ref().unwrap().regular_spi, &[&self.clk_pin]);
-        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
+            .use_program(&self.program.as_ref().unwrap().read, &[&self.clk_pin]);
+        self.cfg.set_in_pins(&[&self.qd0_pin, &self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
         self.sm.set_config(&self.cfg);
         self.sm.set_enable(true);
 
-        let (rx, tx) = self.sm.rx_tx();
+        let rx = self.sm.rx();
 
         let len = buffer.len();
 
         let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
         let rx_transfer = rx.dma_pull(&mut rx_ch, buffer, false);
 
-        let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
-        let tx_transfer = tx.dma_push_zeros::<u8>(&mut tx_ch, len);
-
-        join(tx_transfer, rx_transfer).await;
+        rx_transfer.await;
         defmt::info!("read: {}", &buffer);
 
         Ok(())
