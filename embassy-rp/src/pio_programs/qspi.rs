@@ -19,7 +19,6 @@ struct PioQspiProgram<'d, PIO: Instance> {
     read: LoadedProgram<'d, PIO>,
     write: LoadedProgram<'d, PIO>,
     write_single_line: LoadedProgram<'d, PIO>,
-    regular_spi: LoadedProgram<'d, PIO>,
     phase: Phase,
 }
 
@@ -91,27 +90,11 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         .wrap
                     "#
                 );
-                let regular_spi = pio::pio_asm!(
-                    r#"
-                        ; Use 1 bit for side-set for SCK
-                        .side_set 1
-
-                        ; Set QD0 pin to output
-                        ; Set QD1 pin to input
-                        set pindirs 0b0001 side 0
-
-                        .wrap_target
-                        out pins, 1 side 0 [1]        ; Stall here on empty (sideset proceeds even if
-                        in pins, 1 side 1 [1]         ; instruction stalls, so we stall with SCK low)
-                        .wrap
-                    "#
-                );
 
                 Self {
                     read: common.load_program(&read_prg.program),
                     write: common.load_program(&write_prg.program),
                     write_single_line: common.load_program(&write_single_line_prg.program),
-                    regular_spi: common.load_program(&regular_spi.program),
                     phase,
                 }
             }
@@ -187,7 +170,7 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
 
         let mut cfg = crate::pio::Config::default();
 
-        cfg.use_program(&program.regular_spi, &[&clk_pin]);
+        cfg.use_program(&program.write_single_line, &[&clk_pin]);
         // cfg.use_program(&program.write_single_line, &[&clk_pin]);
         // cfg.set_in_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
         cfg.set_in_pins(&[&qd1_pin, &qd2_pin, &qd3_pin]);
