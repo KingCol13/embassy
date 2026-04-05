@@ -394,7 +394,6 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         self.sm.set_enable(false);
         self.cfg
             .use_program(&self.program.as_ref().unwrap().read, &[&self.clk_pin]);
-        self.cfg.set_in_pins(&[&self.qd0_pin, &self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
         self.sm.set_config(&self.cfg);
         self.sm.clear_fifos();
         self.sm.set_enable(true);
@@ -438,7 +437,6 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         self.sm.set_enable(false);
         self.cfg
             .use_program(&self.program.as_ref().unwrap().write, &[&self.clk_pin]);
-        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
         self.sm.set_config(&self.cfg);
         self.sm.set_enable(true);
 
@@ -481,7 +479,6 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         self.sm.set_enable(false);
         self.cfg
             .use_program(&self.program.as_ref().unwrap().write_single_line, &[&self.clk_pin]);
-        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
         self.sm.set_config(&self.cfg);
         self.sm.set_enable(true);
 
