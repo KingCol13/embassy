@@ -84,8 +84,7 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         set pindirs 0b0001 side 0
 
                         .wrap_target
-                        pull ifempty block side 0
-                        out pins, 1 side 0     ; Stall here on empty (sideset proceeds even if
+                        out pins, 1 side 0 [1] ; Stall here on empty (sideset proceeds even if
                         nop side 1 [1]         ; instruction stalls, so we stall with SCK low)
                         .wrap
                     "#
