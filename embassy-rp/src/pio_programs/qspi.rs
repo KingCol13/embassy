@@ -500,20 +500,17 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
     pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
-            .use_program(&self.program.as_ref().unwrap().regular_spi, &[&self.clk_pin]);
+            .use_program(&self.program.as_ref().unwrap().write_single_line, &[&self.clk_pin]);
         self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
         self.sm.set_config(&self.cfg);
         self.sm.set_enable(true);
 
-        let (rx, tx) = self.sm.rx_tx();
-
-        let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
-        let rx_transfer = rx.dma_pull_discard::<u8>(&mut rx_ch, buffer.len());
+        let tx = self.sm.tx();
 
         let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
         let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
 
-        join(tx_transfer, rx_transfer).await;
+        tx_transfer.await;
         defmt::info!("wrote single line: {}", &buffer);
 
         Ok(())
