@@ -382,7 +382,7 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         let tx_transfer = tx.dma_push_zeros::<u8>(&mut tx_ch, len);
 
         join(tx_transfer, rx_transfer).await;
-        defmt::info!("read: {}", &buffer);
+        defmt::debug!("read: {}", &buffer);
 
         Ok(())
     }
@@ -401,7 +401,7 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
 
         tx_transfer.await;
-        defmt::info!("wrote: {}", &buffer);
+        defmt::debug!("wrote: {}", &buffer);
 
         Ok(())
     }
@@ -420,7 +420,7 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
 
         tx_transfer.await;
-        defmt::info!("wrote single line: {}", &buffer);
+        defmt::debug!("wrote single line: {}", &buffer);
 
         Ok(())
     }
