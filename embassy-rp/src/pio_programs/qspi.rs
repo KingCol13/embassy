@@ -47,6 +47,8 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                 // Clock phase = 0: data is captured on the leading edge of each SCK pulse, and
                 // transitions on the trailing edge, or some time before the first leading edge.
 
+                // TODO: might need to make read hang after completing to prevent clocking and
+                // reading rubbish
                 let read_prg = pio::pio_asm!(
                     r#"
                         ; Use 1 bit for side-set for SCK
