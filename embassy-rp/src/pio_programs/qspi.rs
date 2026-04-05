@@ -58,8 +58,8 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         set pindirs 0b0000 side 0
 
                         .wrap_target
-                        nop side 0 [1]
-                        in pins, 2 side 1 [1]
+                        out null, 4 side 0 [1]
+                        in pins, 4 side 1 [1]
                         .wrap
                     "#
                 );
@@ -69,10 +69,10 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         .side_set 1
 
                         ; Set all data pins to output
-                        set pindirs 0b0001 side 0
+                        set pindirs 0b1111 side 0
 
                         .wrap_target
-                        out pins, 1 side 0 [1]  ; Stall here on empty (sideset proceeds even if
+                        out pins, 4 side 0 [1]  ; Stall here on empty (sideset proceeds even if
                         nop side 1 [1]          ; instruction stalls, so we stall with SCK low)
                         .wrap
                     "#
@@ -398,14 +398,17 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         self.sm.clear_fifos();
         self.sm.set_enable(true);
 
-        let rx = self.sm.rx();
+        let (rx, tx) = self.sm.rx_tx();
 
         let len = buffer.len();
 
         let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
         let rx_transfer = rx.dma_pull(&mut rx_ch, buffer, false);
 
-        rx_transfer.await;
+        let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
+        let tx_transfer = tx.dma_push_zeros::<u8>(&mut tx_ch, len);
+
+        join(tx_transfer, rx_transfer).await;
         defmt::info!("read: {}", &buffer);
 
         Ok(())
