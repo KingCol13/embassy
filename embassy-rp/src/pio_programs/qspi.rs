@@ -371,6 +371,7 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         )
     }
 
+    /// Read data from QSPI using DMA.
     pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
@@ -395,7 +396,7 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         Ok(())
     }
 
-    /// Write data to SPI using DMA.
+    /// Write data to QSPI using DMA.
     pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
@@ -414,7 +415,7 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
         Ok(())
     }
 
-    /// Write data to SPI using DMA.
+    /// Write data using a single line to QSPI using DMA.
     pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
