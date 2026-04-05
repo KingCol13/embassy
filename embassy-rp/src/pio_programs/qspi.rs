@@ -170,14 +170,9 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
         let mut cfg = crate::pio::Config::default();
 
         cfg.use_program(&program.write_single_line, &[&clk_pin]);
-        // cfg.use_program(&program.write_single_line, &[&clk_pin]);
-        // cfg.set_in_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        cfg.set_in_pins(&[&qd1_pin, &qd2_pin, &qd3_pin]);
+        cfg.set_in_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
         cfg.set_out_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
         cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        // cfg.set_in_pins(&[&qd1_pin]);
-        // cfg.set_out_pins(&[&qd0_pin]);
-        // cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
 
         cfg.shift_in.auto_fill = true;
         cfg.shift_in.direction = ShiftDirection::Left;
