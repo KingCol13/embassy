@@ -140,6 +140,10 @@ pub struct Qspi<'d, PIO: Instance, const SM: usize, M: Mode> {
     cfg: crate::pio::Config<'d, PIO>,
     program: Option<PioQspiProgram<'d, PIO>>,
     clk_pin: Pin<'d, PIO>,
+    qd0_pin: Pin<'d, PIO>,
+    qd1_pin: Pin<'d, PIO>,
+    qd2_pin: Pin<'d, PIO>,
+    qd3_pin: Pin<'d, PIO>,
     tx_dma: Option<dma::Channel<'d>>,
     rx_dma: Option<dma::Channel<'d>>,
     phantom: PhantomData<M>,
@@ -218,6 +222,10 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
             program: Some(program),
             cfg,
             clk_pin,
+            qd0_pin,
+            qd1_pin,
+            qd2_pin,
+            qd3_pin,
             tx_dma,
             rx_dma,
             phantom: PhantomData,
@@ -405,6 +413,13 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
     //     Ok(())
     // }
     pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        self.sm.set_enable(false);
+        self.cfg
+            .use_program(&self.program.as_ref().unwrap().regular_spi, &[&self.clk_pin]);
+        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
+        self.sm.set_config(&self.cfg);
+        self.sm.set_enable(true);
+
         let (rx, tx) = self.sm.rx_tx();
 
         let len = buffer.len();
@@ -444,6 +459,13 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
 
     /// Write data to SPI using DMA.
     pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
+        self.sm.set_enable(false);
+        self.cfg
+            .use_program(&self.program.as_ref().unwrap().regular_spi, &[&self.clk_pin]);
+        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
+        self.sm.set_config(&self.cfg);
+        self.sm.set_enable(true);
+
         let (rx, tx) = self.sm.rx_tx();
 
         let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
@@ -480,6 +502,13 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
     // }
     /// Write data to SPI using DMA.
     pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
+        self.sm.set_enable(false);
+        self.cfg
+            .use_program(&self.program.as_ref().unwrap().regular_spi, &[&self.clk_pin]);
+        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
+        self.sm.set_config(&self.cfg);
+        self.sm.set_enable(true);
+
         let (rx, tx) = self.sm.rx_tx();
 
         let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
