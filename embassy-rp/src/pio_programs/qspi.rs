@@ -2,14 +2,15 @@
 
 use core::marker::PhantomData;
 
+use embassy_futures::join::join;
 use embassy_hal_internal::Peri;
 use embedded_hal_02::spi::{Phase, Polarity};
 use fixed::traits::ToFixed;
 use fixed::types::extra::U8;
 
 use crate::clocks::clk_sys_freq;
-use crate::gpio::Level;
-use crate::pio::{Common, Instance, LoadedProgram, Pin, PioPin, ShiftDirection, StateMachine};
+use crate::gpio::{Level, Pull, SlewRate};
+use crate::pio::{Common, Direction, Instance, LoadedProgram, Pin, PioPin, ShiftDirection, StateMachine};
 use crate::spi::{Async, Blocking, Config, Mode};
 use crate::{dma, interrupt};
 
@@ -18,6 +19,7 @@ struct PioQspiProgram<'d, PIO: Instance> {
     read: LoadedProgram<'d, PIO>,
     write: LoadedProgram<'d, PIO>,
     write_single_line: LoadedProgram<'d, PIO>,
+    regular_spi: LoadedProgram<'d, PIO>,
     phase: Phase,
 }
 
@@ -66,10 +68,11 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         .side_set 1
 
                         ; Set all data pins to output
-                        set pindirs 0b1111 side 0
+                        set pindirs 0b1100 side 0
 
                         .wrap_target
-                        out pins, 4 side 0 [1]  ; Stall here on empty (sideset proceeds even if
+                        pull ifempty block side 0
+                        out pins, 2 side 0      ; Stall here on empty (sideset proceeds even if
                         nop side 1 [1]          ; instruction stalls, so we stall with SCK low)
                         .wrap
                     "#
@@ -80,11 +83,26 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         .side_set 1
 
                         ; Set QD0 pin to output
-                        set pindirs 0b1 side 0
+                        set pindirs 0b0001 side 0
 
                         .wrap_target
-                        out pins, 1 side 0 [1] ; Stall here on empty (sideset proceeds even if
+                        pull ifempty block side 0
+                        out pins, 1 side 0     ; Stall here on empty (sideset proceeds even if
                         nop side 1 [1]         ; instruction stalls, so we stall with SCK low)
+                        .wrap
+                    "#
+                );
+                let regular_spi = pio::pio_asm!(
+                    r#"
+                        ; Use 1 bit for side-set for SCK
+                        .side_set 1
+
+                        ; Set QD0 pin to output
+                        ; Set QD1 pin to input
+
+                        .wrap_target
+                        out pins, 1 side 0 [1]        ; Stall here on empty (sideset proceeds even if
+                        in pins, 1 side 1 [1]         ; instruction stalls, so we stall with SCK low)
                         .wrap
                     "#
                 );
@@ -93,6 +111,7 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                     read: common.load_program(&read_prg.program),
                     write: common.load_program(&write_prg.program),
                     write_single_line: common.load_program(&write_single_line_prg.program),
+                    regular_spi: common.load_program(&regular_spi.program),
                     phase,
                 }
             }
@@ -142,10 +161,10 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
         let program = PioQspiProgram::new(pio, config.phase);
 
         let mut clk_pin = pio.make_pio_pin(clk_pin);
-        let qd0_pin = pio.make_pio_pin(qd0_pin);
-        let qd1_pin = pio.make_pio_pin(qd1_pin);
-        let qd2_pin = pio.make_pio_pin(qd2_pin);
-        let qd3_pin = pio.make_pio_pin(qd3_pin);
+        let mut qd0_pin = pio.make_pio_pin(qd0_pin);
+        let mut qd1_pin = pio.make_pio_pin(qd1_pin);
+        let mut qd2_pin = pio.make_pio_pin(qd2_pin);
+        let mut qd3_pin = pio.make_pio_pin(qd3_pin);
 
         if let Polarity::IdleHigh = config.polarity {
             clk_pin.set_output_inversion(true);
@@ -153,12 +172,25 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
             clk_pin.set_output_inversion(false);
         }
 
+        clk_pin.set_slew_rate(SlewRate::Fast);
+        clk_pin.set_pull(Pull::Down);
+
+        for pin in [&mut qd0_pin, &mut qd1_pin, &mut qd2_pin, &mut qd3_pin] {
+            pin.set_input_sync_bypass(true);
+            // pin.set_pull(Pull::Down);
+            // pin.set_schmitt(true);
+        }
+
         let mut cfg = crate::pio::Config::default();
 
-        cfg.use_program(&program.write_single_line, &[&clk_pin]);
-        cfg.set_in_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        cfg.set_out_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
-        cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        cfg.use_program(&program.regular_spi, &[&clk_pin]);
+        // cfg.use_program(&program.write_single_line, &[&clk_pin]);
+        // cfg.set_in_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        // cfg.set_out_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        // cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        cfg.set_in_pins(&[&qd1_pin]);
+        cfg.set_out_pins(&[&qd0_pin]);
+        // cfg.set_set_pins(&[&qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
 
         cfg.shift_in.auto_fill = true;
         cfg.shift_in.direction = ShiftDirection::Left;
@@ -169,10 +201,16 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
         cfg.shift_out.threshold = 8;
 
         cfg.clock_divider = calculate_clock_divider(config.frequency);
+        let bytes = cfg.clock_divider.to_le_bytes();
+        defmt::info!("clock divider: {:?}", bytes);
 
         sm.set_config(&cfg);
 
-        sm.set_pins(Level::Low, &[&clk_pin, &qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+        // sm.set_pins(Level::Low, &[&clk_pin, &qd0_pin, &qd1_pin, &qd2_pin, &qd3_pin]);
+
+        sm.set_pins(Level::Low, &[&clk_pin, &qd0_pin]);
+        sm.set_pin_dirs(Direction::Out, &[&clk_pin, &qd0_pin]);
+        sm.set_pin_dirs(Direction::In, &[&qd1_pin]);
 
         sm.set_enable(true);
 
@@ -349,59 +387,109 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
     }
 
     /// Read data from QSPI using DMA.
+    // pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+    //     self.sm.set_enable(false);
+    //     self.cfg
+    //         .use_program(&self.program.as_ref().unwrap().read, &[&self.clk_pin]);
+    //     self.sm.set_config(&self.cfg);
+    //     self.sm.set_enable(true);
+    //
+    //     let rx = self.sm.rx();
+    //
+    //     let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
+    //     let rx_transfer = rx.dma_pull(&mut rx_ch, buffer, false);
+    //     rx_transfer.await;
+    //
+    //     defmt::info!("read: {}", &buffer);
+    //     embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    //
+    //     Ok(())
+    // }
     pub async fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
-        self.sm.set_enable(false);
-        self.cfg
-            .use_program(&self.program.as_ref().unwrap().read, &[&self.clk_pin]);
-        self.sm.set_config(&self.cfg);
-        self.sm.set_enable(true);
+        let (rx, tx) = self.sm.rx_tx();
 
-        let rx = self.sm.rx();
+        let len = buffer.len();
 
         let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
         let rx_transfer = rx.dma_pull(&mut rx_ch, buffer, false);
-        rx_transfer.await;
 
+        let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
+        let tx_transfer = tx.dma_push_zeros::<u8>(&mut tx_ch, len);
+
+        join(tx_transfer, rx_transfer).await;
         defmt::info!("read: {}", &buffer);
 
         Ok(())
     }
 
     /// Write data to QSPI using DMA.
-    pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
-        self.sm.set_enable(false);
-        self.cfg
-            .use_program(&self.program.as_ref().unwrap().write, &[&self.clk_pin]);
-        self.sm.set_config(&self.cfg);
-        self.sm.set_enable(true);
+    // pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
+    //     self.sm.set_enable(false);
+    //     self.cfg
+    //         .use_program(&self.program.as_ref().unwrap().write, &[&self.clk_pin]);
+    //     self.sm.set_config(&self.cfg);
+    //     self.sm.set_enable(true);
+    //
+    //     let tx = self.sm.tx();
+    //
+    //     let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
+    //     let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
+    //
+    //     tx_transfer.await;
+    //
+    //     defmt::info!("wrote: {}", &buffer);
+    //     embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    //
+    //     Ok(())
+    // }
 
-        let tx = self.sm.tx();
+    /// Write data to SPI using DMA.
+    pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
+        let (rx, tx) = self.sm.rx_tx();
+
+        let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
+        let rx_transfer = rx.dma_pull_discard::<u8>(&mut rx_ch, buffer.len());
 
         let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
         let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
 
-        tx_transfer.await;
-
+        join(tx_transfer, rx_transfer).await;
         defmt::info!("wrote: {}", &buffer);
 
         Ok(())
     }
 
     /// Write data using a single line to QSPI using DMA.
+    // pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
+    //     self.sm.set_enable(false);
+    //     self.cfg
+    //         .use_program(&self.program.as_ref().unwrap().write_single_line, &[&self.clk_pin]);
+    //     self.sm.set_config(&self.cfg);
+    //     self.sm.set_enable(true);
+    //
+    //     let tx = self.sm.tx();
+    //
+    //     let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
+    //     let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
+    //
+    //     tx_transfer.await;
+    //
+    //     defmt::info!("wrote single line: {}", &buffer);
+    //     embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    //
+    //     Ok(())
+    // }
+    /// Write data to SPI using DMA.
     pub async fn write_single_line(&mut self, buffer: &[u8]) -> Result<(), Error> {
-        self.sm.set_enable(false);
-        self.cfg
-            .use_program(&self.program.as_ref().unwrap().write_single_line, &[&self.clk_pin]);
-        self.sm.set_config(&self.cfg);
-        self.sm.set_enable(true);
+        let (rx, tx) = self.sm.rx_tx();
 
-        let tx = self.sm.tx();
+        let mut rx_ch = self.rx_dma.as_mut().unwrap().reborrow();
+        let rx_transfer = rx.dma_pull_discard::<u8>(&mut rx_ch, buffer.len());
 
         let mut tx_ch = self.tx_dma.as_mut().unwrap().reborrow();
         let tx_transfer = tx.dma_push(&mut tx_ch, buffer, false);
 
-        tx_transfer.await;
-
+        join(tx_transfer, rx_transfer).await;
         defmt::info!("wrote single line: {}", &buffer);
 
         Ok(())

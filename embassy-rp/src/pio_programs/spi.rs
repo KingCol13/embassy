@@ -453,11 +453,14 @@ impl<'d, PIO: Instance, const SM: usize> embedded_hal_async::spi::SpiBus<u8> for
     }
 
     async fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
+        defmt::info!("writing: {}", &words);
         self.write(words).await
     }
 
     async fn read(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
-        self.read(words).await
+        let res = self.read(words).await;
+        defmt::info!("read: {}", &words);
+        res
     }
 
     async fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Self::Error> {
