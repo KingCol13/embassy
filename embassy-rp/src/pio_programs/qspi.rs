@@ -68,11 +68,10 @@ impl<'d, PIO: Instance> PioQspiProgram<'d, PIO> {
                         .side_set 1
 
                         ; Set all data pins to output
-                        set pindirs 0b1100 side 0
+                        set pindirs 0b0001 side 0
 
                         .wrap_target
-                        pull ifempty block side 0
-                        out pins, 2 side 0      ; Stall here on empty (sideset proceeds even if
+                        out pins, 1 side 0 [1]  ; Stall here on empty (sideset proceeds even if
                         nop side 1 [1]          ; instruction stalls, so we stall with SCK low)
                         .wrap
                     "#
@@ -458,8 +457,8 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
     pub async fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
         self.sm.set_enable(false);
         self.cfg
-            .use_program(&self.program.as_ref().unwrap().regular_spi, &[&self.clk_pin]);
-        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
+            .use_program(&self.program.as_ref().unwrap().write, &[&self.clk_pin]);
+        self.cfg.set_in_pins(&[&self.qd1_pin, &self.qd1_pin, &self.qd2_pin, &self.qd3_pin]);
         self.sm.set_config(&self.cfg);
         self.sm.set_enable(true);
 
