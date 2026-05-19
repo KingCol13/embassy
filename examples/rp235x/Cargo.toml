@@ -58,6 +58,8 @@ portable-atomic = { version = "1.5", features = ["critical-section"] }
 log = "0.4"
 embedded-sdmmc = "0.7.0"
 
+smoltcp = { version = "0.13.1", default-features = false, features = ["socket-udp"] }
+
 [profile.release]
 # Enable generation of debug symbols even on release builds
 debug = true
