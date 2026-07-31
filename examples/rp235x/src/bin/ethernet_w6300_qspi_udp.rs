@@ -12,7 +12,7 @@ use embassy_futures::yield_now;
 use embassy_net::udp::{PacketMetadata, UdpSocket};
 use embassy_net::{Stack, StackResources};
 use embassy_net_wiznet::chip::W6300;
-use embassy_net_wiznet::wiznet_spi_interface::WiznetQspiBus;
+use embassy_net_wiznet::wiznet_spi_interface::WiznetSpiBus;
 use embassy_net_wiznet::*;
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::gpio::{Input, Level, Output, Pull};
@@ -22,6 +22,7 @@ use embassy_rp::pio_programs::qspi::Qspi;
 use embassy_rp::spi::{Async, Config as SpiConfig};
 use embassy_rp::{bind_interrupts, dma};
 use embassy_time::Delay;
+use embedded_hal_1::digital::OutputPin;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -29,6 +30,33 @@ bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
     DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>, dma::InterruptHandler<DMA_CH1>;
 });
+
+struct ExclusiveQspi<'d, PIO: embassy_rp::pio::Instance, const SM: usize, MODE: embassy_rp::spi::Mode, CS: OutputPin> {
+    bus: Qspi<'d, PIO, SM, MODE>,
+    cs: CS,
+};
+
+impl<'d, PIO: embassy_rp::pio::Instance, const SM: usize, MODE: embassy_rp::spi::Mode, CS: OutputPin> embedded_hal_1::spi::ErrorType for ExclusiveQspi<'d, PIO, SM, MODE, CS> {
+    type Error = Qspi<'d, PIO, SM, MODE>::Error;
+}
+
+impl<'d, PIO: embassy_rp::pio::Instance, const SM: usize, MODE: embassy_rp::spi::Mode, CS: OutputPin> WiznetSpiBus for ExclusiveQspi<'d, PIO, SM, MODE, CS> {
+    const SPI_TYPE: wiznet_spi_interface::SpiType = wiznet_spi_interface::SpiType::Quad;
+
+    fn read<'a>(
+            &mut self,
+            transaction: wiznet_spi_interface::WiznetSpiRead<'a>,
+        ) -> impl Future<Output = Result<(), Self::Error>> {
+        todo!()
+    }
+
+    fn write<'a>(
+            &mut self,
+            transaction: wiznet_spi_interface::WiznetSpiWrite<'a>,
+        ) -> impl Future<Output = Result<(), Self::Error>> {
+        todo!()
+    }
+}
 
 #[embassy_executor::task]
 async fn ethernet_task(
@@ -93,7 +121,7 @@ async fn main(spawner: Spawner) {
     let (device, runner) = embassy_net_wiznet::new(
         mac_addr,
         state,
-        WiznetQspiBus(ExclusiveDevice::new(qspi, cs, Delay).unwrap()),
+        ExclusiveQspi{bus: qspi, cs},
         w6300_int,
         w6300_reset,
     )

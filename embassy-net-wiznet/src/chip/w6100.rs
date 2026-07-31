@@ -1,4 +1,4 @@
-use crate::wiznet_spi_interface::{WiznetSpiBus, WiznetSpiOperation};
+use crate::wiznet_spi_interface::{WiznetSpiBus, WiznetSpiRead, WiznetSpiWrite};
 
 #[repr(u8)]
 pub enum RegisterBlock {
@@ -62,12 +62,12 @@ impl super::SealedChip for W6100 {
         let address_phase = address.1.to_be_bytes();
         let control_phase = [(address.0 as u8) << 3];
 
-        let operations = [
-            WiznetSpiOperation::Write(&address_phase),
-            WiznetSpiOperation::Write(&control_phase),
-            WiznetSpiOperation::Read(data),
-        ];
-        spi.transaction(operations).await
+        spi.read(WiznetSpiRead {
+            write_single: &address_phase,
+            write: &control_phase,
+            read_data: data,
+        })
+        .await
     }
 
     async fn bus_write<SPI: WiznetSpiBus>(
@@ -77,13 +77,12 @@ impl super::SealedChip for W6100 {
     ) -> Result<(), SPI::Error> {
         let address_phase = address.1.to_be_bytes();
         let control_phase = [(address.0 as u8) << 3 | 0b0000_0100];
-        let data_phase = data;
 
-        let operations = [
-            WiznetSpiOperation::Write(&address_phase[..]),
-            WiznetSpiOperation::Write(&control_phase),
-            WiznetSpiOperation::Write(&data_phase),
-        ];
-        spi.transaction(operations).await
+        spi.write(WiznetSpiWrite {
+            write_single: &address_phase,
+            write: &control_phase,
+            write_data: data,
+        })
+        .await
     }
 }

@@ -1,4 +1,4 @@
-use crate::wiznet_spi_interface::{WiznetSpiBus, WiznetSpiOperation};
+use crate::wiznet_spi_interface::{WiznetSpiBus, WiznetSpiRead, WiznetSpiWrite};
 
 #[repr(u8)]
 pub enum RegisterBlock {
@@ -56,8 +56,12 @@ impl super::SealedChip for W5500 {
         let addr = address.1.to_be_bytes();
         let header = [addr[0], addr[1], (address.0 as u8) << 3];
 
-        let operations = [WiznetSpiOperation::Write(&header), WiznetSpiOperation::Read(data)];
-        spi.transaction(operations).await
+        spi.read(WiznetSpiRead {
+            write_single: &[],
+            write: &header,
+            read_data: data,
+        })
+        .await
     }
 
     async fn bus_write<SPI: WiznetSpiBus>(
@@ -68,7 +72,11 @@ impl super::SealedChip for W5500 {
         let addr = address.1.to_be_bytes();
         let header = [addr[0], addr[1], (address.0 as u8) << 3 | 0b0000_0100];
 
-        let operations = [WiznetSpiOperation::Write(&header), WiznetSpiOperation::Write(data)];
-        spi.transaction(operations).await
+        spi.write(WiznetSpiWrite {
+            write_single: &[],
+            write: &header,
+            write_data: data,
+        })
+        .await
     }
 }

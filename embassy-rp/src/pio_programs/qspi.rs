@@ -240,7 +240,7 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
     }
 
     /// Block execution until QSPI is done.
-    pub fn flush(&mut self) -> Result<(), Error> {
+    pub fn blocking_flush(&mut self) -> Result<(), Error> {
         // Wait for all words in the FIFO to have been pulled by the SM
         while !self.sm.tx().empty() {}
 
@@ -277,7 +277,7 @@ impl<'d, PIO: Instance, const SM: usize, M: Mode> Qspi<'d, PIO, SM, M> {
     /// there is insufficient room. This is unlikely since the programs for each
     /// phase only differ in size by a single instruction.
     pub fn set_config(&mut self, pio: &mut Common<'d, PIO>, config: &Config) {
-        self.flush();
+        self.blocking_flush();
         self.sm.set_enable(false);
 
         self.cfg.clock_divider = calculate_clock_divider(config.frequency);
@@ -438,24 +438,8 @@ impl<'d, PIO: Instance, const SM: usize> Qspi<'d, PIO, SM, Async> {
 
         Ok(())
     }
-}
 
-// HAL traits:
-
-impl embassy_embedded_hal::qspi::traits::Error for Error {
-    fn kind(&self) -> embedded_hal_1::spi::ErrorKind {
-        match *self {}
-    }
-}
-
-impl<'d, PIO: Instance, const SM: usize, M: Mode> embassy_embedded_hal::qspi::traits::ErrorType
-    for Qspi<'d, PIO, SM, M>
-{
-    type Error = Error;
-}
-
-impl<'d, PIO: Instance, const SM: usize> embassy_embedded_hal::qspi::traits::QspiBus<u8> for Qspi<'d, PIO, SM, Async> {
-    async fn flush(&mut self) -> Result<(), Self::Error> {
+    pub async fn flush(&mut self) -> Result<(), Error> {
         // wait for the ready IRQ to fire
         self.async_flush().await;
         // set the ready IRQ back
@@ -470,17 +454,5 @@ impl<'d, PIO: Instance, const SM: usize> embassy_embedded_hal::qspi::traits::Qsp
             self.sm.exec_instr(RESET_IRQ);
         }
         Ok(())
-    }
-
-    async fn read(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
-        self.read(words).await
-    }
-
-    async fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-        self.write(words).await
-    }
-
-    async fn write_single_line(&mut self, words: &[u8]) -> Result<(), Self::Error> {
-        self.write_single_line(words).await
     }
 }

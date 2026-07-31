@@ -1,9 +1,6 @@
 //! Trait for different types of SPI and blanket implementations
 
-mod qspi;
 mod spi;
-
-pub use qspi::WiznetQspiBus;
 
 use embedded_hal::spi::ErrorType;
 
@@ -18,17 +15,26 @@ pub enum SpiType {
     Quad,
 }
 
-/// Wiznet SPI operations to build transactions with
+/// Wiznet SPI read transaction
 #[derive(Debug, PartialEq, Eq)]
-pub enum WiznetSpiOperation<'a> {
-    /// Read data into the provided buffer.
-    Read(&'a mut [u8]),
-    /// Write data from the provided buffer, discarding possible read data.
-    Write(&'a [u8]),
-    /// Write data from the provided buffer using a single line.
-    ///
-    /// Useful for instruction phases
-    WriteSingleLine(&'a [u8]),
+pub struct WiznetSpiRead<'a> {
+    /// Write on a single SPI line. Can be set to empty slice if not required.
+    pub write_single: &'a [u8],
+    /// Write using full width of SPI.
+    pub write: &'a [u8],
+    /// Read using full width of SPI.
+    pub read_data: &'a mut [u8],
+}
+
+/// Wiznet SPI write transaction
+#[derive(Debug, PartialEq, Eq)]
+pub struct WiznetSpiWrite<'a> {
+    /// Write on a single SPI line. Can be set to empty slice if not required.
+    pub write_single: &'a [u8],
+    /// Write using full width of SPI.
+    pub write: &'a [u8],
+    /// Read using full width of SPI.
+    pub write_data: &'a [u8],
 }
 
 /// Interface for communicating with Wiznet chip with various types of SPI
@@ -36,16 +42,29 @@ pub trait WiznetSpiBus<Word: Copy + 'static = u8>: ErrorType {
     /// Type of SPI implemented by the type
     const SPI_TYPE: SpiType;
 
-    /// Perform a transaction against the device.
+    /// Perform a read transaction against the device.
     ///
     /// - Locks the bus
     /// - Asserts the CS (Chip Select) pin.
-    /// - Performs all the operations.
+    /// - Performs the WiznetSpiRead operations.
     /// - [Flushes](SpiBus::flush) the bus.
     /// - Deasserts the CS pin.
     /// - Unlocks the bus.
-    async fn transaction<'a, const N: usize>(
+    async fn read<'a>(
         &mut self,
-        operations: [WiznetSpiOperation<'a>; N],
+        transaction: WiznetSpiRead<'a>,
+    ) -> Result<(), Self::Error>;
+
+    /// Perform a write against the device.
+    ///
+    /// - Locks the bus
+    /// - Asserts the CS (Chip Select) pin.
+    /// - Performs the WiznetSpiWrite operations.
+    /// - [Flushes](SpiBus::flush) the bus.
+    /// - Deasserts the CS pin.
+    /// - Unlocks the bus.
+    async fn write<'a>(
+        &mut self,
+        transaction: WiznetSpiWrite<'a>,
     ) -> Result<(), Self::Error>;
 }

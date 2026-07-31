@@ -1,4 +1,4 @@
-use crate::wiznet_spi_interface::{WiznetSpiBus, WiznetSpiOperation};
+use crate::wiznet_spi_interface::{WiznetSpiBus, WiznetSpiRead, WiznetSpiWrite};
 
 const SOCKET_BASE: u16 = 0x400;
 const TX_BASE: u16 = 0x4000;
@@ -49,10 +49,11 @@ impl super::SealedChip for W5100S {
         address: Self::Address,
         data: &mut [u8],
     ) -> Result<(), SPI::Error> {
-        spi.transaction([
-            WiznetSpiOperation::Write(&[0x0F, (address >> 8) as u8, address as u8]),
-            WiznetSpiOperation::Read(data),
-        ])
+        spi.read(WiznetSpiRead {
+            write_single: &[],
+            write: &[0x0F, (address >> 8) as u8, address as u8],
+            read_data: data,
+        })
         .await
     }
 
@@ -61,10 +62,11 @@ impl super::SealedChip for W5100S {
         address: Self::Address,
         data: &[u8],
     ) -> Result<(), SPI::Error> {
-        spi.transaction([
-            WiznetSpiOperation::Write(&[0xF0, (address >> 8) as u8, address as u8]),
-            WiznetSpiOperation::Write(data),
-        ])
+        spi.write(WiznetSpiWrite {
+            write_single: &[],
+            write: &[0xF0, (address >> 8) as u8, address as u8],
+            write_data: data,
+        })
         .await
     }
 }
